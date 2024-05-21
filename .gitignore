@@ -1,0 +1,10 @@
+# Intellij .idea
+.idea
+
+# Maven
+target/
+
+# Visual Studio Code
+.vscode
+
+
