@@ -1,13 +1,8 @@
-package ar.edu.itba.cripto;
+package ar.edu.itba.cripto.steganography;
 
-import java.io.File;
+import ar.edu.itba.cripto.cryptography.Cryptography;
 
-public class Embed {
-
-
-    public void setInput(String inputFilePath) {
-        // TODO
-    }
+public class Extract {
 
     public void setCover(String coverFilePath) {
         // TODO
@@ -28,4 +23,5 @@ public class Embed {
     public void execute() {
         // TODO
     }
+
 }

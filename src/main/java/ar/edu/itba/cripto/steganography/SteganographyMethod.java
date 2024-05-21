@@ -1,4 +1,4 @@
-package ar.edu.itba.cripto;
+package ar.edu.itba.cripto.steganography;
 
 public enum SteganographyMethod {
     LSB1,

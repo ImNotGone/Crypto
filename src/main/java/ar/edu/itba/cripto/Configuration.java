@@ -1,5 +1,10 @@
 package ar.edu.itba.cripto;
 
+import ar.edu.itba.cripto.cryptography.Cryptography;
+import ar.edu.itba.cripto.cryptography.CryptographyAlgorithm;
+import ar.edu.itba.cripto.cryptography.CryptographyMode;
+import ar.edu.itba.cripto.steganography.Embed;
+import ar.edu.itba.cripto.steganography.Extract;
 import org.apache.commons.cli.*;
 
 public class Configuration {

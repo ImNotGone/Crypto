@@ -1,4 +1,4 @@
-package ar.edu.itba.cripto;
+package ar.edu.itba.cripto.cryptography;
 
 public class Cryptography {
 
