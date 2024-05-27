@@ -1,7 +1,10 @@
 package ar.edu.itba.cripto.model;
 
 import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 
 public class BMP {
     private int width;
@@ -17,6 +20,10 @@ public class BMP {
     private static final int HEADER_SIZE = FILE_HEADER_SIZE + BMP_INFO_HEADER_SIZE;
     private static final int BITS_PER_PIXEL = BYTES_PER_PIXEL * 8;
     private static final int COMPRESSION = 0;
+
+    public static final int BLUE = 0xFF;
+    public static final int GREEN = 0xFF00;
+    public static final int RED = 0xFF0000;
 
     public BMP(String filePath) throws IOException {
         loadBMP(filePath);
@@ -57,9 +64,6 @@ public class BMP {
             throw new IOException("Only 24-bit BMP files without compression are supported");
         }
 
-        // multiplico x BYTES_PER_PIXEL y agrego BYTES_PER_PIXEL
-        // luego hago & con 11...1100
-        // para alinear al siguiente multiplo de 4
         rowSize = getRowSize(width);
         pixelData = new byte[rowSize * height];
 
@@ -69,18 +73,41 @@ public class BMP {
         fis.close();
     }
 
-    // aux para obtener datos de los headers
-    private int readInt(byte[] buffer, int offset) {
-        return ((buffer[offset] & 0xFF)) |
-                ((buffer[offset + 1] & 0xFF) << 8) |
-                ((buffer[offset + 2] & 0xFF) << 16) |
-                ((buffer[offset + 3] & 0xFF) << 24);
+    public void writeBMP(String filePath) throws IOException {
+        FileOutputStream fos = new FileOutputStream(filePath);
+        byte[] header = new byte[HEADER_SIZE];
+        header[0] = 'B';
+        header[1] = 'M';
+        writeInt(header, 2, FILE_HEADER_SIZE);
+        writeInt(header, 10, HEADER_SIZE);
+        writeInt(header, 14, 40); // taken from wikipedia
+        writeInt(header, 18, width);
+        writeInt(header, 22, height);
+        writeShort(header, 26, 1); // planes
+        writeInt(header, 28, BITS_PER_PIXEL);
+        writeInt(header, 30, COMPRESSION); // 0, no compression
+        writeInt(header, 34, pixelData.length); // raw length (includes padding)
+
+        fos.write(header);
+        fos.write(pixelData);
+        fos.close();
     }
 
     // aux para obtener datos de los headers
+    private int readInt(byte[] buffer, int offset) {
+        return ByteBuffer.wrap(buffer, offset, 4).order(ByteOrder.LITTLE_ENDIAN).getInt();
+    }
+
     private int readShort(byte[] buffer, int offset) {
-        return ((buffer[offset] & 0xFF)) |
-                ((buffer[offset + 1] & 0xFF) << 8);
+        return ByteBuffer.wrap(buffer, offset, 2).order(ByteOrder.LITTLE_ENDIAN).getShort();
+    }
+
+    private void writeInt(byte[] buffer, int offset, int value) {
+        ByteBuffer.wrap(buffer, offset, 4).order(ByteOrder.LITTLE_ENDIAN).putInt(value);
+    }
+
+    private void writeShort(byte[] buffer, int offset, int value) {
+        ByteBuffer.wrap(buffer, offset, 2).order(ByteOrder.LITTLE_ENDIAN).putShort((short) value);
     }
 
     public int getWidth() {
@@ -95,17 +122,38 @@ public class BMP {
         return pixelData;
     }
 
-    // Method to get the RGB value of a specific pixel
-    public int getRGB(int x, int y) {
+    private int getIndex(int x, int y) {
         if (x < 0 || x >= width || y < 0 || y >= height) {
             throw new IllegalArgumentException("Coordinates out of bounds");
         }
-        int pixelIndex = (height - y - 1) * rowSize + x * BYTES_PER_PIXEL;
+        return (height - y - 1) * rowSize + x * BYTES_PER_PIXEL;
+    }
+
+    public int getRGB(int x, int y) {
+        int pixelIndex = getIndex(x,y);
 
         int blue = pixelData[pixelIndex] & 0xFF;
         int green = pixelData[pixelIndex + 1] & 0xFF;
         int red = pixelData[pixelIndex + 2] & 0xFF;
 
         return (red << 16) | (green << 8) | blue;
+    }
+
+    public void setRGB(int x, int y, int rgb) {
+        int pixelIndex = getIndex(x,y);
+
+        pixelData[pixelIndex] = (byte) (rgb & 0xFF);
+        pixelData[pixelIndex + 1] = (byte) ((rgb >> 8) & 0xFF);
+        pixelData[pixelIndex + 2] = (byte) ((rgb >> 16) & 0xFF);
+    }
+
+    // create image seen in wikipedia named Example 1
+    public static void main(String[] args) throws IOException {
+        BMP bmp = new BMP(2, 2);
+        bmp.setRGB(0, 0, BMP.BLUE);
+        bmp.setRGB(1, 0, BMP.GREEN);
+        bmp.setRGB(0, 1, BMP.RED);
+        bmp.setRGB(1, 1, BMP.BLUE | BMP.GREEN | BMP.RED); //white
+        bmp.writeBMP("test.bmp");
     }
 }
