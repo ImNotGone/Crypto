@@ -147,6 +147,28 @@ public class BMP {
         pixelData[pixelIndex + 2] = (byte) ((rgb >> 16) & 0xFF);
     }
 
+    public BMP scale(int scale) {
+        if(scale < 1) {
+            throw new IllegalArgumentException("Scale must be greater than 0");
+        }
+        BMP bmp = new BMP(width * scale, height * scale);
+
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                int pixel = getRGB(x, y);
+                int x_mul = x*scale;
+                int y_mul = y*scale;
+                for(int y_scaled = 0; y_scaled < scale; y_scaled++) {
+                    for (int x_scaled = 0; x_scaled < scale; x_scaled++) {
+                        bmp.setRGB(x_mul + x_scaled, y_mul + y_scaled, pixel);
+                    }
+                }
+            }
+        }
+
+        return bmp;
+    }
+
     // create image seen in wikipedia named Example 1
     public static void main(String[] args) throws IOException {
         BMP bmp = new BMP(2, 2);
@@ -154,6 +176,9 @@ public class BMP {
         bmp.setRGB(1, 0, BMP.GREEN);
         bmp.setRGB(0, 1, BMP.RED);
         bmp.setRGB(1, 1, BMP.BLUE | BMP.GREEN | BMP.RED); //white
-        bmp.writeBMP("test.bmp");
+
+        bmp.writeBMP("2by2.bmp");
+        BMP scaled = bmp.scale(200);
+        scaled.writeBMP("2by2scaled.bmp");
     }
 }
