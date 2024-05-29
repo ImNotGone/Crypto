@@ -119,7 +119,30 @@ public class BMP {
     }
 
     public byte[] getPixelData() {
-        return pixelData;
+        int rowSizeWithoutPadding = width * BYTES_PER_PIXEL;
+        if(rowSize == width*BYTES_PER_PIXEL) {
+            return pixelData;
+        }
+        byte[] pixelDataWithoutPadding = new byte[width*height];
+        for(int y = 0; y < height; y++) {
+            System.arraycopy(pixelData, y*rowSize, pixelDataWithoutPadding, rowSizeWithoutPadding, rowSizeWithoutPadding);
+        }
+
+        return pixelDataWithoutPadding;
+    }
+
+    public void setPixelData(byte[] pixelData) {
+        if(pixelData.length != width*height*BYTES_PER_PIXEL) {
+            throw new IllegalArgumentException("Invalid pixel data length");
+        }
+        int rowSizeWithoutPadding = width * BYTES_PER_PIXEL;
+        if(rowSize == rowSizeWithoutPadding) {
+            System.arraycopy(pixelData, 0, this.pixelData, 0, width*height*BYTES_PER_PIXEL);
+            return;
+        }
+        for(int y = 0; y < height; y++) {
+            System.arraycopy(pixelData, y*rowSizeWithoutPadding, this.pixelData, y*rowSize, rowSizeWithoutPadding);
+        }
     }
 
     private int getIndex(int x, int y) {
