@@ -1,5 +1,7 @@
 package ar.edu.itba.cripto.model;
 
+import ar.edu.itba.cripto.steganography.SteganographyMethod;
+
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -192,16 +194,22 @@ public class BMP {
         return bmp;
     }
 
-    // create image seen in wikipedia named Example 1
     public static void main(String[] args) throws IOException {
-        BMP bmp = new BMP(2, 2);
-        bmp.setRGB(0, 0, BMP.BLUE);
-        bmp.setRGB(1, 0, BMP.GREEN);
-        bmp.setRGB(0, 1, BMP.RED);
-        bmp.setRGB(1, 1, BMP.BLUE | BMP.GREEN | BMP.RED); //white
+        BMP bmp = new BMP("ladoLSB1.bmp");
 
-        bmp.writeBMP("2by2.bmp");
-        BMP scaled = bmp.scale(200);
-        scaled.writeBMP("2by2scaled.bmp");
+        byte[] data = SteganographyMethod.LSB1.extract(bmp);
+        int length = ((data[0]) & 0xFF) << 24 |
+                ((data[1]) & 0xFF) << 16 |
+                ((data[2]) & 0xFF) <<  8 |
+                ((data[3]) & 0xFF);
+        StringBuilder fileNameBuilder = new StringBuilder().append("out");
+        for (int i = 4 + length; i < data.length - 1; i++) {
+            fileNameBuilder.append((char)data[i]);
+        }
+        byte[] fileBytes = new byte[length];
+        System.arraycopy(data, 4, fileBytes, 0, length);
+        FileOutputStream fos = new FileOutputStream(fileNameBuilder.toString());
+        fos.write(fileBytes);
+        fos.close();
     }
 }
