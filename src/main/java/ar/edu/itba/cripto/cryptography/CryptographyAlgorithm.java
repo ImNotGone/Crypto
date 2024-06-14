@@ -4,7 +4,7 @@ public enum CryptographyAlgorithm {
     AES128("AES", 128),
     AES192("AES", 192),
     AES256("AES", 256),
-    DES("DES", 64);
+    DES("DESede", 192);
 
     private final String algorithm;
     private final int keySize;
