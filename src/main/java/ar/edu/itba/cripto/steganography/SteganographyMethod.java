@@ -8,7 +8,7 @@ import java.util.List;
 public enum SteganographyMethod {
     LSB1{
         @Override
-        public BMP embed(Byte[] message, BMP image) {
+        public BMP embed(byte[] message, BMP image) {
             throw new UnsupportedOperationException("Not supported yet.");
         }
 
@@ -52,7 +52,7 @@ public enum SteganographyMethod {
     },
     LSB4{
         @Override
-        public BMP embed(Byte[] message, BMP image) {
+        public BMP embed(byte[] message, BMP image) {
             throw new UnsupportedOperationException("Not supported yet.");
         }
 
@@ -63,7 +63,7 @@ public enum SteganographyMethod {
     },
     LSBI{
         @Override
-        public BMP embed(Byte[] message, BMP image) {
+        public BMP embed(byte[] message, BMP image) {
             throw new UnsupportedOperationException("Not supported yet.");
         }
 
@@ -73,6 +73,6 @@ public enum SteganographyMethod {
         }
     };
 
-    public abstract BMP embed(Byte[] message, BMP image);
+    public abstract BMP embed(byte[] message, BMP image);
     public abstract byte[] extract(BMP image);
 }
