@@ -5,6 +5,9 @@ import ar.edu.itba.cripto.cryptography.CryptographyAlgorithm;
 import ar.edu.itba.cripto.cryptography.CryptographyMode;
 import ar.edu.itba.cripto.steganography.Embed;
 import ar.edu.itba.cripto.steganography.Extract;
+
+import java.util.List;
+
 import org.apache.commons.cli.*;
 
 public class Configuration {
@@ -44,6 +47,7 @@ public class Configuration {
 
         if (cmd.hasOption("help")) {
             printHelp(options);
+            System.exit(0);        
         }
 
         if (cmd.hasOption("embed")) {
@@ -109,11 +113,16 @@ public class Configuration {
 
             extract.execute();
         }
+
+        printHelp(options);
     }
 
     private static void printHelp(Options options) {
+        
         HelpFormatter formatter = new HelpFormatter();
-        formatter.printHelp("stegobmp", options);
+        List<Option> optionsList = List.of(Configuration.options); 
+        formatter.setOptionComparator((o1, o2) -> optionsList.indexOf(o2) - optionsList.indexOf(o2));  
+        formatter.printHelp("stegobmp ", options);
     }
 
     private static Cryptography getCryptography(CommandLine cmd) {
