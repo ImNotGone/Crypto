@@ -6,9 +6,10 @@ import ar.edu.itba.cripto.cryptography.CryptographyMode;
 import ar.edu.itba.cripto.steganography.Embed;
 import ar.edu.itba.cripto.steganography.Extract;
 
-import java.util.List;
-
 import org.apache.commons.cli.*;
+
+import java.io.IOException;
+import java.util.List;
 
 public class Configuration {
 
@@ -47,7 +48,7 @@ public class Configuration {
 
         if (cmd.hasOption("help")) {
             printHelp(options);
-            System.exit(0);        
+            System.exit(0);
         }
 
         if (cmd.hasOption("embed")) {
@@ -58,14 +59,24 @@ public class Configuration {
                 System.exit(1);
             }
 
-            embed.setInput(cmd.getOptionValue("input"));
+            try {
+                embed.setInput(cmd.getOptionValue("input"));
+            } catch (IOException e) {
+                System.err.println("Error reading input file: " + e.getMessage());
+                System.exit(1);
+            }
 
             if (!cmd.hasOption("cover")) {
                 System.err.println("Cover file is required");
                 System.exit(1);
             }
 
-            embed.setCover(cmd.getOptionValue("cover"));
+            try {
+                embed.setCover(cmd.getOptionValue("cover"));
+            } catch (IOException e) {
+                System.err.println("Error reading cover file: " + e.getMessage());
+                System.exit(1);
+            }
 
             if (!cmd.hasOption("output")) {
                 System.err.println("Output file is required");
@@ -86,7 +97,11 @@ public class Configuration {
                 embed.setCryptography(cryptography);
             }
 
-            embed.execute();
+            try {
+                embed.execute();
+            } catch (IOException e) {
+                System.err.println("Error writing output file: " + e.getMessage());
+            }
         }
 
         if (cmd.hasOption("extract")) {
@@ -118,10 +133,11 @@ public class Configuration {
     }
 
     private static void printHelp(Options options) {
-        
+
         HelpFormatter formatter = new HelpFormatter();
-        List<Option> optionsList = List.of(Configuration.options); 
-        formatter.setOptionComparator((o1, o2) -> optionsList.indexOf(o2) - optionsList.indexOf(o2));  
+        List<Option> optionsList = List.of(Configuration.options);
+        formatter.setOptionComparator(
+                (o1, o2) -> optionsList.indexOf(o2) - optionsList.indexOf(o2));
         formatter.printHelp("stegobmp ", options);
     }
 
