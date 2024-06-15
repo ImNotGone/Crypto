@@ -90,7 +90,12 @@ public class Configuration {
                 System.exit(1);
             }
 
-            embed.setSteganographyMethod(cmd.getOptionValue("steganography"));
+            try {
+                embed.setSteganographyMethod(cmd.getOptionValue("steganography"));
+            } catch (IllegalArgumentException e) {
+                System.err.println("Invalid steganography method");
+                System.exit(1);
+            }
 
             Cryptography cryptography = getCryptography(cmd);
             if (cryptography != null) {
@@ -102,6 +107,8 @@ public class Configuration {
             } catch (IOException e) {
                 System.err.println("Error writing output file: " + e.getMessage());
             }
+
+            System.exit(0);
         }
 
         if (cmd.hasOption("extract")) {
@@ -112,7 +119,12 @@ public class Configuration {
                 System.exit(1);
             }
 
-            extract.setCover(cmd.getOptionValue("p"));
+            try {
+                extract.setCover(cmd.getOptionValue("p"));
+            } catch (IOException e) {
+                System.err.println("Error reading cover file: " + e.getMessage());
+                System.exit(1);
+            }
 
             if (!cmd.hasOption("output")) {
                 System.err.println("Output file is required");
@@ -121,12 +133,31 @@ public class Configuration {
 
             extract.setOutput(cmd.getOptionValue("output"));
 
+            if (!cmd.hasOption("steganography")) {
+                System.err.println("Steganography method is required");
+                System.exit(1);
+            }
+
+            try {
+                extract.setSteganographyMethod(cmd.getOptionValue("steganography"));
+            } catch (IllegalArgumentException e) {
+                System.err.println("Invalid steganography method");
+                System.exit(1);
+            }
+
             Cryptography cryptography = getCryptography(cmd);
             if (cryptography != null) {
                 extract.setCryptography(cryptography);
             }
 
-            extract.execute();
+            try {
+                extract.execute();
+            } catch (IOException e) {
+                System.err.println("Error writing output file: " + e.getMessage());
+                System.exit(1);
+            }
+
+            System.exit(0);
         }
 
         printHelp(options);
