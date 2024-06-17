@@ -1,6 +1,8 @@
 package ar.edu.itba.cripto.cryptography;
 
 import java.security.Key;
+import java.security.NoSuchAlgorithmException;
+import java.security.spec.InvalidKeySpecException;
 
 import javax.crypto.*;
 import javax.crypto.spec.IvParameterSpec;
@@ -9,8 +11,8 @@ import javax.crypto.spec.SecretKeySpec;
 
 public class Cryptography {
 
-    private static final byte[] SALT = "salado".getBytes(); // "salado
-    private static final int ITERATIONS = 65536;
+    private static final byte[] SALT = new byte[8];
+    private static final int ITERATIONS = 10000;
     private static final String KEY_ALGORITHM = "PBKDF2WithHmacSHA256";
 
     private final Cipher encryptCipher;
@@ -18,32 +20,34 @@ public class Cryptography {
 
     public Cryptography(CryptographyAlgorithm algorithm, CryptographyMode mode, String password) {
 
-        int keySize = algorithm.getKeySize();
-        String transformation = algorithm.getAlgorithm() + "/" + mode.name() + "/PKCS5Padding";
+        String transformation = algorithm.getAlgorithm() + "/" + mode.getMode() + "/PKCS5Padding";
 
         try {
 
             this.encryptCipher = Cipher.getInstance(transformation);
             this.decryptCipher = Cipher.getInstance(transformation);
 
-            SecretKeyFactory keyFactory = SecretKeyFactory.getInstance(KEY_ALGORITHM);
-            PBEKeySpec spec = new PBEKeySpec(password.toCharArray(), SALT, ITERATIONS, keySize);
-            SecretKey secretKey = keyFactory.generateSecret(spec);
-            Key key = new SecretKeySpec(secretKey.getEncoded(), algorithm.getAlgorithm());
+            // Generate key and IV from password
+            int keySize = algorithm.getKeySize();
+            int ivSize = mode.usesIV() ? algorithm.getIvSize() : 0;
 
-            // ECB does not need IV
-            if (mode == CryptographyMode.ECB) {
-                encryptCipher.init(Cipher.ENCRYPT_MODE, key);
-                decryptCipher.init(Cipher.DECRYPT_MODE, key);
+            byte[] keyIV = deriveKeyIV(password, keySize + ivSize);
 
-            } else {
+            byte[] keyBytes = new byte[keySize / 8];
+            System.arraycopy(keyIV, 0, keyBytes, 0, keySize / 8);
 
-                IvParameterSpec emptyIV =
-                        new IvParameterSpec(new byte[encryptCipher.getBlockSize()]);
+            Key key = new SecretKeySpec(keyBytes, algorithm.getAlgorithm());
 
-                encryptCipher.init(Cipher.ENCRYPT_MODE, key, emptyIV);
-                decryptCipher.init(Cipher.DECRYPT_MODE, key, emptyIV);
+            IvParameterSpec iv = null;
+            if (mode.usesIV()) {
+                byte[] ivBytes = new byte[ivSize / 8];
+                System.arraycopy(keyIV, keySize / 8, ivBytes, 0, ivSize / 8);
+                iv = new IvParameterSpec(ivBytes);
             }
+
+            // Initialize ciphers
+            encryptCipher.init(Cipher.ENCRYPT_MODE, key, iv);
+            decryptCipher.init(Cipher.DECRYPT_MODE, key, iv);
 
         } catch (Exception e) {
             throw new IllegalStateException("Error initializing cryptography", e);
@@ -68,5 +72,13 @@ public class Cryptography {
         } catch (BadPaddingException e) {
             throw new IllegalStateException("Bad padding", e);
         }
+    }
+
+    private byte[] deriveKeyIV(String password, int size)
+            throws InvalidKeySpecException, NoSuchAlgorithmException {
+        SecretKeyFactory factory = SecretKeyFactory.getInstance(KEY_ALGORITHM);
+        PBEKeySpec spec = new PBEKeySpec(password.toCharArray(), SALT, ITERATIONS, size);
+        SecretKey key = factory.generateSecret(spec);
+        return key.getEncoded();
     }
 }
