@@ -13,6 +13,11 @@ public enum SteganographyMethod {
             byte[] pixelData = image.getPixelData();
 
             int lsb1Mask = 0xFE;
+            int bytesNeeded = message.length * 8;
+
+            if (pixelData.length < bytesNeeded) {
+                throw new RuntimeException("BMP file is not long enough");
+            }
 
             // i: itera los bytes de pixel data
             // messageIndex: itera los bytes del mensaje
@@ -43,11 +48,6 @@ public enum SteganographyMethod {
                 pixelData[i] = modifiedImageByte;
 
                 bitIndex++;
-            }
-
-            // Si no pude embeber toodo el mensaje, error
-            if (messageIndex < message.length) {
-                throw new RuntimeException("BMP file is not long enough");
             }
 
             image.setPixelData(pixelData);
