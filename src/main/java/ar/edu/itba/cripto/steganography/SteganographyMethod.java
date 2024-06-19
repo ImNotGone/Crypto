@@ -2,8 +2,7 @@ package ar.edu.itba.cripto.steganography;
 
 import ar.edu.itba.cripto.model.BMP;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
 
 public enum SteganographyMethod {
     LSB1{
@@ -165,7 +164,112 @@ public enum SteganographyMethod {
     LSBI{
         @Override
         public BMP embed(byte[] message, BMP image) {
-            throw new UnsupportedOperationException("Not supported yet.");
+            byte[] originalPixelData = image.getPixelData();
+
+            // 4 bytes needed for storing the inversion pattern
+            int bytesNeeded = message.length * 8 + 4;
+
+            if (originalPixelData.length < bytesNeeded) {
+                throw new RuntimeException("BMP file is not long enough");
+            }
+
+            BMP stegoImage = SteganographyMethod.LSB1.embed(message, image);
+            byte[] stegoImagePixelData = stegoImage.getPixelData();
+
+            /*
+            0000 0000
+            0000 0010
+            0000 0100
+            0000 0110
+             */
+            byte[] possiblePatterns = {0x0, 0x2, 0x4, 0x6};
+            Map<Byte, Integer> patternCount = new HashMap<>();
+            for (byte originalPixelDatum : originalPixelData){
+                for (byte possiblePattern : possiblePatterns){
+                    if ((originalPixelDatum & 0x6) == possiblePattern){
+                        patternCount.put(possiblePattern, patternCount.getOrDefault(possiblePattern, 0) + 1);
+                    }
+                }
+                if(patternCount.size() == possiblePatterns.length){
+                    break;
+                }
+            }
+
+            // Check if all patterns have at least 2 pixels
+            for (byte pattern : possiblePatterns){
+                if (patternCount.getOrDefault(pattern, 0) < 2){
+                    patternCount.remove(pattern);
+                }
+            }
+
+            Set<Byte> patternsToVerify = patternCount.keySet();
+            Map<Byte, Integer> changedCount = new HashMap<>();
+            Map<Byte, Integer> unchangedCount = new HashMap<>();
+            for (int i = 0; i < stegoImagePixelData.length; i++){
+                byte stegoPixelDatum = stegoImagePixelData[i];
+                byte originalPixelDatum = originalPixelData[i];
+
+                byte currentPattern = (byte) (originalPixelDatum & 0x6);
+
+                if(patternsToVerify.contains(currentPattern)){
+                    byte originalLeastSignificantBit = (byte) (originalPixelDatum & 0x1);
+                    byte stegoLeastSignificantBit = (byte) (stegoPixelDatum & 0x1);
+
+                    if(originalLeastSignificantBit != stegoLeastSignificantBit){
+                        changedCount.put(currentPattern, changedCount.getOrDefault(currentPattern, 0) + 1);
+                    } else {
+                        unchangedCount.put(currentPattern, unchangedCount.getOrDefault(currentPattern, 0) + 1);
+                    }
+                }
+            }
+
+            Set<Byte> patternsToChange = new HashSet<>();
+            for (byte pattern : patternsToVerify){
+                if(changedCount.get(pattern) <= unchangedCount.get(pattern)){
+                    patternsToChange.add(pattern);
+                }
+            }
+
+            // Change the least significant bit of the pixels with the patterns to change
+            int messageIndex = 0;
+            int bitIndex = 0;
+            for (byte stegoImagePixelDatum : stegoImagePixelData) {
+                // Si ya itere toodo el byte del mensaje paso al sig.
+                if (bitIndex == 8) {
+                    bitIndex = 0;
+                    messageIndex++;
+                }
+
+                // Termine el mensaje, salgo
+                if (messageIndex == message.length) {
+                    break;
+                }
+
+                byte currentPattern = (byte) (stegoImagePixelDatum & 0x6);
+
+                if (patternsToChange.contains(currentPattern)) {
+                    // Invert current bit
+                    message[messageIndex] = (byte) (message[messageIndex] ^ (1 << (7 - bitIndex)));
+                }
+                bitIndex++;
+            }
+
+            // Embed the inversion pattern
+            byte[] inversionPattern = new byte[possiblePatterns.length];
+            for (int i = 0; i < possiblePatterns.length; i++){
+                byte pattern = possiblePatterns[i];
+                if(patternsToChange.contains(pattern)){
+                    inversionPattern[i] = 1;
+                } else {
+                    inversionPattern[i] = 0;
+                }
+            }
+
+            byte[] newMessage = new byte[message.length + 4];
+            System.arraycopy(inversionPattern, 0, newMessage, 0, 4);
+            System.arraycopy(message, 0, newMessage, 4, message.length);
+
+            return SteganographyMethod.LSB1.embed(newMessage, image);
         }
 
         @Override
