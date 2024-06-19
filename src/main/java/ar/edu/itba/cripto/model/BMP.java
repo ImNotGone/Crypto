@@ -179,23 +179,4 @@ public class BMP {
 
         return bmp;
     }
-
-    public static void main(String[] args) throws IOException {
-        BMP bmp = new BMP("ladoLSB1.bmp");
-
-        byte[] data = SteganographyMethod.LSB1.extract(bmp);
-        int length = ((data[0]) & 0xFF) << 24 |
-                ((data[1]) & 0xFF) << 16 |
-                ((data[2]) & 0xFF) <<  8 |
-                ((data[3]) & 0xFF);
-        StringBuilder fileNameBuilder = new StringBuilder().append("out");
-        for (int i = 4 + length; i < data.length - 1; i++) {
-            fileNameBuilder.append((char)data[i]);
-        }
-        byte[] fileBytes = new byte[length];
-        System.arraycopy(data, 4, fileBytes, 0, length);
-        FileOutputStream fos = new FileOutputStream(fileNameBuilder.toString());
-        fos.write(fileBytes);
-        fos.close();
-    }
 }
