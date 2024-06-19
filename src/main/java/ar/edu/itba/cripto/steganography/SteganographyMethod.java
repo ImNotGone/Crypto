@@ -96,7 +96,25 @@ public enum SteganographyMethod {
     LSB4{
         @Override
         public BMP embed(byte[] message, BMP image) {
-            throw new UnsupportedOperationException("Not supported yet.");
+            byte[] pixelData = image.getPixelData();
+            int messageLength = message.length;
+            int byteIndex = 0;
+            int bitIndex = 0;
+
+            for (int i = 0; i < pixelData.length && byteIndex < messageLength; i++) {
+
+                int bitsToEmbed = (message[byteIndex] >> (4 - bitIndex * 4)) & 0xF;
+                pixelData[i] = (byte) ((pixelData[i] & 0xF0) | bitsToEmbed);
+                bitIndex++;
+
+                if (bitIndex == 2) {
+                    bitIndex = 0;
+                    byteIndex++;
+                }
+            }
+
+            image.setPixelData(pixelData);
+            return image;
         }
 
         @Override
