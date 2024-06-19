@@ -58,7 +58,40 @@ public enum SteganographyMethod {
 
         @Override
         public byte[] extract(BMP image) {
-            throw new UnsupportedOperationException("Not supported yet.");
+            byte[] pixelData = image.getPixelData();
+            List<Byte> hiddenData = new ArrayList<>();
+            int byteValue = 0;
+            int bitIndex = 0;
+            int hiddenDataLength = 0;
+
+            for (byte pixelDatum : pixelData) {
+                byteValue = (byteValue << 4) | (pixelDatum & 0xF);
+                bitIndex+=4;
+
+                if (bitIndex == 8) {
+                    hiddenData.add((byte)byteValue);
+                    bitIndex = 0;
+                    byteValue = 0;
+
+                    // extraigo el length
+                    if (hiddenData.size() == 4) {
+                        hiddenDataLength =  ((hiddenData.get(0)) & 0xFF) << 24 |
+                                ((hiddenData.get(1)) & 0xFF) << 16 |
+                                ((hiddenData.get(2)) & 0xFF) <<  8 |
+                                ((hiddenData.get(3)) & 0xFF);
+                        if(hiddenDataLength <= 0) {
+                            throw new RuntimeException("No hidden data found");
+                        }
+                    } else if(hiddenData.size() >= 4 + hiddenDataLength + 1 && hiddenData.get(hiddenData.size() - 1) == 0) {
+                        break;
+                    }
+                }
+            }
+            byte[] result = new byte[hiddenData.size()];
+            for (int i = 0; i < hiddenData.size(); i++) {
+                result[i] = hiddenData.get(i);
+            }
+            return result;
         }
     },
     LSBI{
