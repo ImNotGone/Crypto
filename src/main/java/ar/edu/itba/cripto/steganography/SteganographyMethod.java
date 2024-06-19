@@ -98,6 +98,13 @@ public enum SteganographyMethod {
         public BMP embed(byte[] message, BMP image) {
             byte[] pixelData = image.getPixelData();
             int messageLength = message.length;
+
+            int bytesNeeded = messageLength* 2;
+
+            if (pixelData.length < bytesNeeded) {
+                throw new RuntimeException("BMP file is not long enough");
+            }
+            
             int byteIndex = 0;
             int bitIndex = 0;
 
