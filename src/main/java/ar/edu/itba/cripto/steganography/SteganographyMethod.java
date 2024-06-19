@@ -3,6 +3,7 @@ package ar.edu.itba.cripto.steganography;
 import ar.edu.itba.cripto.model.BMP;
 
 import java.util.*;
+import java.util.function.Predicate;
 
 public enum SteganographyMethod {
     LSB1 {
@@ -62,6 +63,12 @@ public enum SteganographyMethod {
             int bitIndex = 0;
             int hiddenDataLength = 0;
 
+            Predicate<Integer> cutCondition = (length -> hiddenData.size() >= 4 + length + 1
+                    && hiddenData.get(hiddenData.size() - 1) == 0);
+            if (!containsExtension) {
+                cutCondition = (length -> hiddenData.size() >= 4 + length);
+            }
+
             for (byte pixelDatum : pixelData) {
                 byteValue = (byteValue << 1) | (pixelDatum & 0x1);
                 bitIndex++;
@@ -81,10 +88,7 @@ public enum SteganographyMethod {
                         if (hiddenDataLength <= 0) {
                             throw new RuntimeException("No hidden data found");
                         }
-                    } else if ((containsExtension
-                                    && hiddenData.size() >= 4 + hiddenDataLength + 1
-                                    && hiddenData.get(hiddenData.size() - 1) == 0)
-                            || (!containsExtension && hiddenData.size() >= 4 + hiddenDataLength)) {
+                    } else if (cutCondition.test(hiddenDataLength)) {
                         break;
                     }
                 }
@@ -135,6 +139,12 @@ public enum SteganographyMethod {
             int bitIndex = 0;
             int hiddenDataLength = 0;
 
+            Predicate<Integer> cutCondition = (length -> hiddenData.size() >= 4 + length + 1
+                    && hiddenData.get(hiddenData.size() - 1) == 0);
+            if (!containsExtension) {
+                cutCondition = (length -> hiddenData.size() >= 4 + length);
+            }
+
             for (byte pixelDatum : pixelData) {
                 byteValue = (byteValue << 4) | (pixelDatum & 0xF);
                 bitIndex += 4;
@@ -154,10 +164,7 @@ public enum SteganographyMethod {
                         if (hiddenDataLength <= 0) {
                             throw new RuntimeException("No hidden data found");
                         }
-                    } else if ((containsExtension
-                                    && hiddenData.size() >= 4 + hiddenDataLength + 1
-                                    && hiddenData.get(hiddenData.size() - 1) == 0)
-                            || (!containsExtension && hiddenData.size() >= 4 + hiddenDataLength)) {
+                    } else if (cutCondition.test(hiddenDataLength)) {
                         break;
                     }
                 }
