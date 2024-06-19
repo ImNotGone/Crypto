@@ -28,7 +28,7 @@ public class Configuration {
         new Option("pass", "password", true, "Password"),
     };
 
-    public static void run(String[] args) {
+    public static int run(String[] args) {
         // Create the command line parser
         CommandLineParser parser = new DefaultParser();
 
@@ -37,18 +37,18 @@ public class Configuration {
             options.addOption(option);
         }
 
-        CommandLine cmd = null;
+        CommandLine cmd;
 
         try {
             cmd = parser.parse(options, args);
         } catch (ParseException e) {
             System.err.println("Error parsing command line arguments: " + e.getMessage());
-            System.exit(1);
+            return 1;
         }
 
         if (cmd.hasOption("help")) {
             printHelp(options);
-            System.exit(0);
+            return 0;
         }
 
         if (cmd.hasOption("embed")) {
@@ -56,50 +56,54 @@ public class Configuration {
 
             if (!cmd.hasOption("input")) {
                 System.err.println("Input file is required");
-                System.exit(1);
+                return 1;
             }
 
             try {
                 embed.setInput(cmd.getOptionValue("input"));
             } catch (IOException e) {
                 System.err.println("Error reading input file: " + e.getMessage());
-                System.exit(1);
+                return 1;
             }
 
             if (!cmd.hasOption("cover")) {
                 System.err.println("Cover file is required");
-                System.exit(1);
+                return 1;
             }
 
             try {
                 embed.setCover(cmd.getOptionValue("cover"));
             } catch (IOException e) {
                 System.err.println("Error reading cover file: " + e.getMessage());
-                System.exit(1);
+                return 1;
             }
 
             if (!cmd.hasOption("output")) {
                 System.err.println("Output file is required");
-                System.exit(1);
+                return 1;
             }
 
             embed.setOutput(cmd.getOptionValue("output"));
 
             if (!cmd.hasOption("steganography")) {
                 System.err.println("Steganography method is required");
-                System.exit(1);
+                return 1;
             }
 
             try {
                 embed.setSteganographyMethod(cmd.getOptionValue("steganography"));
             } catch (IllegalArgumentException e) {
                 System.err.println("Invalid steganography method");
-                System.exit(1);
+                return 1;
             }
 
-            Cryptography cryptography = getCryptography(cmd);
-            if (cryptography != null) {
-                embed.setCryptography(cryptography);
+            try {
+                Cryptography cryptography = getCryptography(cmd);
+                if (cryptography != null) {
+                    embed.setCryptography(cryptography);
+                }
+            } catch (IllegalArgumentException e) {
+                System.err.println("Invalid cryptography parameters");
             }
 
             try {
@@ -108,7 +112,7 @@ public class Configuration {
                 System.err.println("Error writing output file: " + e.getMessage());
             }
 
-            System.exit(0);
+            return 0;
         }
 
         if (cmd.hasOption("extract")) {
@@ -116,51 +120,57 @@ public class Configuration {
 
             if (!cmd.hasOption("p")) {
                 System.err.println("Cover file is required");
-                System.exit(1);
+                return 1;
             }
 
             try {
                 extract.setCover(cmd.getOptionValue("p"));
             } catch (IOException e) {
                 System.err.println("Error reading cover file: " + e.getMessage());
-                System.exit(1);
+                return 1;
             }
 
             if (!cmd.hasOption("output")) {
                 System.err.println("Output file is required");
-                System.exit(1);
+                return 1;
             }
 
             extract.setOutput(cmd.getOptionValue("output"));
 
             if (!cmd.hasOption("steganography")) {
                 System.err.println("Steganography method is required");
-                System.exit(1);
+                return 1;
             }
 
             try {
                 extract.setSteganographyMethod(cmd.getOptionValue("steganography"));
             } catch (IllegalArgumentException e) {
                 System.err.println("Invalid steganography method");
-                System.exit(1);
+                return 1;
             }
 
-            Cryptography cryptography = getCryptography(cmd);
-            if (cryptography != null) {
-                extract.setCryptography(cryptography);
+            try {
+                Cryptography cryptography = getCryptography(cmd);
+                if (cryptography != null) {
+                    extract.setCryptography(cryptography);
+                }
+            } catch (IllegalArgumentException e) {
+                System.err.println("Invalid cryptography parameters");
             }
 
             try {
                 extract.execute();
             } catch (IOException e) {
                 System.err.println("Error writing output file: " + e.getMessage());
-                System.exit(1);
+                return 1;
             }
 
-            System.exit(0);
+            return 0;
         }
 
         printHelp(options);
+
+        return 0;
     }
 
     private static void printHelp(Options options) {
@@ -175,29 +185,18 @@ public class Configuration {
     private static Cryptography getCryptography(CommandLine cmd) {
         if (cmd.hasOption("algorithm") || cmd.hasOption("mode") || cmd.hasOption("password")) {
             if (!cmd.hasOption("password")) {
-                System.err.println("Password is required for cryptography");
-                System.exit(1);
+                throw new IllegalArgumentException("Password is required");
             }
 
             CryptographyAlgorithm algorithm = CryptographyAlgorithm.AES128;
             CryptographyMode mode = CryptographyMode.CBC;
 
             if (cmd.hasOption("algorithm")) {
-                try {
-                    algorithm = CryptographyAlgorithm.valueOf(cmd.getOptionValue("algorithm"));
-                } catch (IllegalArgumentException e) {
-                    System.err.println("Invalid algorithm");
-                    System.exit(1);
-                }
+                algorithm = CryptographyAlgorithm.valueOf(cmd.getOptionValue("algorithm"));
             }
 
             if (cmd.hasOption("mode")) {
-                try {
-                    mode = CryptographyMode.valueOf(cmd.getOptionValue("mode"));
-                } catch (IllegalArgumentException e) {
-                    System.err.println("Invalid mode");
-                    System.exit(1);
-                }
+                mode = CryptographyMode.valueOf(cmd.getOptionValue("mode"));
             }
 
             return new Cryptography(algorithm, mode, cmd.getOptionValue("password"));
