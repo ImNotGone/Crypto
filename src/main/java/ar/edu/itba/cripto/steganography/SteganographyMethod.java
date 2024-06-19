@@ -9,7 +9,50 @@ public enum SteganographyMethod {
     LSB1{
         @Override
         public BMP embed(byte[] message, BMP image) {
-            throw new UnsupportedOperationException("Not supported yet.");
+
+            byte[] pixelData = image.getPixelData();
+
+            int lsb1Mask = 0xFE;
+
+            // i: itera los bytes de pixel data
+            // messageIndex: itera los bytes del mensaje
+            // bitIndex: itera el byte actual
+            int messageIndex = 0;
+            int bitIndex = 0;
+
+            for (int i = 0; i < pixelData.length; i++) {
+
+                // Si ya itere toodo el byte del mensaje paso al sig.
+                if (bitIndex == 8) {
+                    bitIndex = 0;
+                    messageIndex++;
+                }
+
+                // Termine el mensaje, salgo
+                if (messageIndex == message.length) {
+                    break;
+                }
+
+                // Obtengo el bit actual del mensaje
+                byte currentByte = message[messageIndex];
+                int currentBit = (currentByte >> (7 - bitIndex)) & 1;
+
+                // Modifico el bit menos significativo de la imagen con el del mensaje
+                byte imageByte = pixelData[i];
+                byte modifiedImageByte = (byte) ((imageByte & lsb1Mask) | currentBit);
+                pixelData[i] = modifiedImageByte;
+
+                bitIndex++;
+            }
+
+            // Si no pude embeber toodo el mensaje, error
+            if (messageIndex < message.length) {
+                throw new RuntimeException("BMP file is not long enough");
+            }
+
+            image.setPixelData(pixelData);
+
+            return image;
         }
 
         @Override
