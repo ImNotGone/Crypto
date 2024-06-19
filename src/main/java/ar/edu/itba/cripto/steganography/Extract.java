@@ -32,7 +32,8 @@ public class Extract {
     }
 
     public void execute() throws IOException {
-        byte[] hiddenData = steganographyMethod.extract(cover);
+        boolean containsExtension = cryptography == null;
+        byte[] hiddenData = steganographyMethod.extract(cover, containsExtension);
 
         if (cryptography != null) {
 
