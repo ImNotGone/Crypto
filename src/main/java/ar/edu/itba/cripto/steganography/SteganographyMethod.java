@@ -9,171 +9,23 @@ public enum SteganographyMethod {
     LSB1 {
         @Override
         public BMP embed(byte[] message, BMP image) {
-
-            byte[] pixelData = image.getPixelData();
-
-            int lsb1Mask = 0xFE;
-            int bytesNeeded = message.length * 8;
-
-            if (pixelData.length < bytesNeeded) {
-                throw new RuntimeException("BMP file is not long enough");
-            }
-
-            // i: itera los bytes de pixel data
-            // messageIndex: itera los bytes del mensaje
-            // bitIndex: itera el byte actual
-            int messageIndex = 0;
-            int bitIndex = 0;
-
-            for (int i = 0; i < pixelData.length; i++) {
-
-                // Si ya itere toodo el byte del mensaje paso al sig.
-                if (bitIndex == 8) {
-                    bitIndex = 0;
-                    messageIndex++;
-                }
-
-                // Termine el mensaje, salgo
-                if (messageIndex == message.length) {
-                    break;
-                }
-
-                // Obtengo el bit actual del mensaje
-                byte currentByte = message[messageIndex];
-                int currentBit = (currentByte >> (7 - bitIndex)) & 1;
-
-                // Modifico el bit menos significativo de la imagen con el del mensaje
-                byte imageByte = pixelData[i];
-                byte modifiedImageByte = (byte) ((imageByte & lsb1Mask) | currentBit);
-                pixelData[i] = modifiedImageByte;
-
-                bitIndex++;
-            }
-
-            image.setPixelData(pixelData);
-
-            return image;
+            return lsbEmbed(message, image, 1);
         }
 
         @Override
         public byte[] extract(BMP image, boolean containsExtension) {
-            byte[] pixelData = image.getPixelData();
-            List<Byte> hiddenData = new ArrayList<>();
-            int byteValue = 0;
-            int bitIndex = 0;
-            int hiddenDataLength = 0;
-
-            Predicate<Integer> cutCondition = (length -> hiddenData.size() >= 4 + length + 1
-                    && hiddenData.get(hiddenData.size() - 1) == 0);
-            if (!containsExtension) {
-                cutCondition = (length -> hiddenData.size() >= 4 + length);
-            }
-
-            for (byte pixelDatum : pixelData) {
-                byteValue = (byteValue << 1) | (pixelDatum & 0x1);
-                bitIndex++;
-
-                if (bitIndex == 8) {
-                    hiddenData.add((byte) byteValue);
-                    bitIndex = 0;
-                    byteValue = 0;
-
-                    // extraigo el length
-                    if (hiddenData.size() == 4) {
-                        hiddenDataLength =
-                                ((hiddenData.get(0)) & 0xFF) << 24
-                                        | ((hiddenData.get(1)) & 0xFF) << 16
-                                        | ((hiddenData.get(2)) & 0xFF) << 8
-                                        | ((hiddenData.get(3)) & 0xFF);
-                        if (hiddenDataLength <= 0) {
-                            throw new RuntimeException("No hidden data found");
-                        }
-                    } else if (cutCondition.test(hiddenDataLength)) {
-                        break;
-                    }
-                }
-            }
-            byte[] result = new byte[hiddenData.size()];
-            for (int i = 0; i < hiddenData.size(); i++) {
-                result[i] = hiddenData.get(i);
-            }
-            return result;
+            return lsbExtract(image, containsExtension, 1);
         }
     },
     LSB4 {
         @Override
         public BMP embed(byte[] message, BMP image) {
-            byte[] pixelData = image.getPixelData();
-            int messageLength = message.length;
-
-            int bytesNeeded = messageLength * 2;
-
-            if (pixelData.length < bytesNeeded) {
-                throw new RuntimeException("BMP file is not long enough");
-            }
-
-            int byteIndex = 0;
-            int bitIndex = 0;
-
-            for (int i = 0; i < pixelData.length && byteIndex < messageLength; i++) {
-
-                int bitsToEmbed = (message[byteIndex] >> (4 - bitIndex * 4)) & 0xF;
-                pixelData[i] = (byte) ((pixelData[i] & 0xF0) | bitsToEmbed);
-                bitIndex++;
-
-                if (bitIndex == 2) {
-                    bitIndex = 0;
-                    byteIndex++;
-                }
-            }
-
-            image.setPixelData(pixelData);
-            return image;
+            return lsbEmbed(message, image, 4);
         }
 
         @Override
         public byte[] extract(BMP image, boolean containsExtension) {
-            byte[] pixelData = image.getPixelData();
-            List<Byte> hiddenData = new ArrayList<>();
-            int byteValue = 0;
-            int bitIndex = 0;
-            int hiddenDataLength = 0;
-
-            Predicate<Integer> cutCondition = (length -> hiddenData.size() >= 4 + length + 1
-                    && hiddenData.get(hiddenData.size() - 1) == 0);
-            if (!containsExtension) {
-                cutCondition = (length -> hiddenData.size() >= 4 + length);
-            }
-
-            for (byte pixelDatum : pixelData) {
-                byteValue = (byteValue << 4) | (pixelDatum & 0xF);
-                bitIndex += 4;
-
-                if (bitIndex == 8) {
-                    hiddenData.add((byte) byteValue);
-                    bitIndex = 0;
-                    byteValue = 0;
-
-                    // extraigo el length
-                    if (hiddenData.size() == 4) {
-                        hiddenDataLength =
-                                ((hiddenData.get(0)) & 0xFF) << 24
-                                        | ((hiddenData.get(1)) & 0xFF) << 16
-                                        | ((hiddenData.get(2)) & 0xFF) << 8
-                                        | ((hiddenData.get(3)) & 0xFF);
-                        if (hiddenDataLength <= 0) {
-                            throw new RuntimeException("No hidden data found");
-                        }
-                    } else if (cutCondition.test(hiddenDataLength)) {
-                        break;
-                    }
-                }
-            }
-            byte[] result = new byte[hiddenData.size()];
-            for (int i = 0; i < hiddenData.size(); i++) {
-                result[i] = hiddenData.get(i);
-            }
-            return result;
+            return lsbExtract(image, containsExtension, 4);
         }
     },
     LSBI {
@@ -199,20 +51,21 @@ public enum SteganographyMethod {
              */
             byte[] possiblePatterns = {0x0, 0x2, 0x4, 0x6};
             Map<Byte, Integer> patternCount = new HashMap<>();
-            for (byte originalPixelDatum : originalPixelData){
-                for (byte possiblePattern : possiblePatterns){
-                    if ((originalPixelDatum & 0x6) == possiblePattern){
-                        patternCount.put(possiblePattern, patternCount.getOrDefault(possiblePattern, 0) + 1);
+            for (byte originalPixelDatum : originalPixelData) {
+                for (byte possiblePattern : possiblePatterns) {
+                    if ((originalPixelDatum & 0x6) == possiblePattern) {
+                        patternCount.put(
+                                possiblePattern, patternCount.getOrDefault(possiblePattern, 0) + 1);
                     }
                 }
-                if(patternCount.size() == possiblePatterns.length){
+                if (patternCount.size() == possiblePatterns.length) {
                     break;
                 }
             }
 
             // Check if all patterns have at least 2 pixels
-            for (byte pattern : possiblePatterns){
-                if (patternCount.getOrDefault(pattern, 0) < 2){
+            for (byte pattern : possiblePatterns) {
+                if (patternCount.getOrDefault(pattern, 0) < 2) {
                     patternCount.remove(pattern);
                 }
             }
@@ -220,27 +73,29 @@ public enum SteganographyMethod {
             Set<Byte> patternsToVerify = patternCount.keySet();
             Map<Byte, Integer> changedCount = new HashMap<>();
             Map<Byte, Integer> unchangedCount = new HashMap<>();
-            for (int i = 0; i < stegoImagePixelData.length; i++){
+            for (int i = 0; i < stegoImagePixelData.length; i++) {
                 byte stegoPixelDatum = stegoImagePixelData[i];
                 byte originalPixelDatum = originalPixelData[i];
 
                 byte currentPattern = (byte) (originalPixelDatum & 0x6);
 
-                if(patternsToVerify.contains(currentPattern)){
+                if (patternsToVerify.contains(currentPattern)) {
                     byte originalLeastSignificantBit = (byte) (originalPixelDatum & 0x1);
                     byte stegoLeastSignificantBit = (byte) (stegoPixelDatum & 0x1);
 
-                    if(originalLeastSignificantBit != stegoLeastSignificantBit){
-                        changedCount.put(currentPattern, changedCount.getOrDefault(currentPattern, 0) + 1);
+                    if (originalLeastSignificantBit != stegoLeastSignificantBit) {
+                        changedCount.put(
+                                currentPattern, changedCount.getOrDefault(currentPattern, 0) + 1);
                     } else {
-                        unchangedCount.put(currentPattern, unchangedCount.getOrDefault(currentPattern, 0) + 1);
+                        unchangedCount.put(
+                                currentPattern, unchangedCount.getOrDefault(currentPattern, 0) + 1);
                     }
                 }
             }
 
             Set<Byte> patternsToChange = new HashSet<>();
-            for (byte pattern : patternsToVerify){
-                if(changedCount.get(pattern) <= unchangedCount.get(pattern)){
+            for (byte pattern : patternsToVerify) {
+                if (changedCount.get(pattern) <= unchangedCount.get(pattern)) {
                     patternsToChange.add(pattern);
                 }
             }
@@ -271,9 +126,9 @@ public enum SteganographyMethod {
 
             // Embed the inversion pattern
             byte[] inversionPattern = new byte[possiblePatterns.length];
-            for (int i = 0; i < possiblePatterns.length; i++){
+            for (int i = 0; i < possiblePatterns.length; i++) {
                 byte pattern = possiblePatterns[i];
-                if(patternsToChange.contains(pattern)){
+                if (patternsToChange.contains(pattern)) {
                     inversionPattern[i] = 1;
                 } else {
                     inversionPattern[i] = 0;
@@ -296,4 +151,98 @@ public enum SteganographyMethod {
     public abstract BMP embed(byte[] message, BMP image);
 
     public abstract byte[] extract(BMP image, boolean containsExtension);
+
+
+    private static BMP lsbEmbed(byte[] message, BMP image, int bitsPerByte) {
+        byte[] pixelData = image.getPixelData();
+
+        // mask: pone en 0 los bits menos significativos
+        int mask = (0xFF << (bitsPerByte)) & 0xFF;
+        int bytesNeeded = message.length * (8 / bitsPerByte);
+
+        if (pixelData.length < bytesNeeded) {
+            throw new RuntimeException("BMP file is not long enough");
+        }
+
+        // i: itera los bytes de pixel data
+        // messageIndex: itera los bytes del mensaje
+        // bitIndex: itera el byte actual
+        int messageIndex = 0;
+        int bitIndex = 0;
+
+        for (int i = 0; i < pixelData.length; i++) {
+
+            // Si ya itere toodo el byte del mensaje paso al sig.
+            if (bitIndex == 8) {
+                bitIndex = 0;
+                messageIndex++;
+            }
+
+            // Termine el mensaje, salgo
+            if (messageIndex == message.length) {
+                break;
+            }
+
+            // Obtengo los bitsPerByte del byte
+            byte currentByte = message[messageIndex];
+            int bitsToEmbed = (currentByte >> (8 - (bitsPerByte + bitIndex))) & ((1 << bitsPerByte) - 1);
+
+            // Modifico el bit menos significativo de la imagen con el del mensaje
+            byte imageByte = pixelData[i];
+            byte modifiedImageByte = (byte) ((imageByte & mask) | bitsToEmbed);
+            pixelData[i] = modifiedImageByte;
+
+            bitIndex += bitsPerByte;
+        }
+
+        image.setPixelData(pixelData);
+
+        return image;
+    }
+
+    private static byte[] lsbExtract(BMP image, boolean containsExtension, int bitsPerByte) {
+        byte[] pixelData = image.getPixelData();
+        List<Byte> hiddenData = new ArrayList<>();
+        int byteValue = 0;
+        int bitIndex = 0;
+        int hiddenDataLength = 0;
+
+
+
+        Predicate<Integer> cutCondition = (length -> hiddenData.size() >= 4 + length);
+        if (containsExtension) {
+            cutCondition =
+                    cutCondition.and(length -> hiddenData.get(hiddenData.size() - 1) == '\0');
+        }
+
+        for (byte pixelDatum : pixelData) {
+            byteValue = (byteValue << bitsPerByte) | (pixelDatum & ((1 << bitsPerByte) - 1));
+            bitIndex += bitsPerByte;
+
+            if (bitIndex == 8) {
+                hiddenData.add((byte) byteValue);
+                bitIndex = 0;
+                byteValue = 0;
+
+                // extraigo el length
+                if (hiddenData.size() == 4) {
+                    hiddenDataLength =
+                            ((hiddenData.get(0)) & 0xFF) << 24
+                                    | ((hiddenData.get(1)) & 0xFF) << 16
+                                    | ((hiddenData.get(2)) & 0xFF) << 8
+                                    | ((hiddenData.get(3)) & 0xFF);
+                    if (hiddenDataLength <= 0) {
+                        throw new RuntimeException("No hidden data found");
+                    }
+                } else if (cutCondition.test(hiddenDataLength)) {
+                    break;
+                }
+            }
+        }
+        byte[] result = new byte[hiddenData.size()];
+        for (int i = 0; i < hiddenData.size(); i++) {
+            result[i] = hiddenData.get(i);
+        }
+        return result;
+    }
 }
