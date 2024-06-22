@@ -104,6 +104,7 @@ public class Configuration {
                 }
             } catch (IllegalArgumentException e) {
                 System.err.println("Invalid cryptography parameters");
+                return 1;
             }
 
             System.out.println("Embedding message...");
@@ -160,6 +161,7 @@ public class Configuration {
                 }
             } catch (IllegalArgumentException e) {
                 System.err.println("Invalid cryptography parameters");
+                return 1;
             }
 
             System.out.println("Extracting message...");
@@ -201,11 +203,13 @@ public class Configuration {
             CryptographyMode mode = CryptographyMode.CBC;
 
             if (cmd.hasOption("algorithm")) {
-                algorithm = CryptographyAlgorithm.valueOf(cmd.getOptionValue("algorithm"));
+                String algorithmString = cmd.getOptionValue("algorithm").toUpperCase();
+                algorithm = CryptographyAlgorithm.valueOf(algorithmString);
             }
 
             if (cmd.hasOption("mode")) {
-                mode = CryptographyMode.valueOf(cmd.getOptionValue("mode"));
+                String modeString = cmd.getOptionValue("mode").toUpperCase();
+                mode = CryptographyMode.valueOf(modeString);
             }
 
             return new Cryptography(algorithm, mode, cmd.getOptionValue("password"));
