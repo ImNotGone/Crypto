@@ -8,3 +8,7 @@ target/
 .vscode
 
 
+.settings
+.DS_store
+.project
+.classpath
