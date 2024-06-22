@@ -106,11 +106,15 @@ public class Configuration {
                 System.err.println("Invalid cryptography parameters");
             }
 
+            System.out.println("Embedding message...");
+
             try {
                 embed.execute();
             } catch (IOException e) {
                 System.err.println("Error writing output file: " + e.getMessage());
             }
+
+            System.out.println("Message embedded to " + cmd.getOptionValue("output"));
 
             return 0;
         }
@@ -158,12 +162,17 @@ public class Configuration {
                 System.err.println("Invalid cryptography parameters");
             }
 
+            System.out.println("Extracting message...");
+
+            String outputPath;
             try {
-                extract.execute();
+                outputPath = extract.execute();
             } catch (IOException e) {
                 System.err.println("Error writing output file: " + e.getMessage());
                 return 1;
             }
+
+            System.out.println("Message extracted to " + outputPath);
 
             return 0;
         }

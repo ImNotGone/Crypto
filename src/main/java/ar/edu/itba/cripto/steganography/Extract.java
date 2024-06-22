@@ -31,7 +31,7 @@ public class Extract {
         this.cryptography = cryptography;
     }
 
-    public void execute() throws IOException {
+    public String execute() throws IOException {
         boolean containsExtension = cryptography == null;
         byte[] hiddenData = steganographyMethod.extract(cover, containsExtension);
 
@@ -67,6 +67,8 @@ public class Extract {
         File outputFile = new File(outputPath + extensionString);
 
         Files.write(outputFile.toPath(), message);
+
+        return outputFile.getPath();
     }
 
     private int byteArrayToInt(byte[] bytes) {
