@@ -20,7 +20,7 @@ public class Cryptography {
 
     public Cryptography(CryptographyAlgorithm algorithm, CryptographyMode mode, String password) {
 
-        String transformation = algorithm.getAlgorithm() + "/" + mode.getMode() + "/PKCS5Padding";
+        String transformation = algorithm.getAlgorithm() + "/" + mode.getMode() + (mode.usesPadding() ? "/PKCS5Padding" : "/NoPadding");
 
         try {
 
