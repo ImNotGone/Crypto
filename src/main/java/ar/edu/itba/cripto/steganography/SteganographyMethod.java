@@ -144,14 +144,70 @@ public enum SteganographyMethod {
 
         @Override
         public byte[] extract(BMP image, boolean containsExtension) {
-            throw new UnsupportedOperationException("Not supported yet.");
+            byte[] pixelData = image.getPixelData();
+            List<Byte> hiddenData = new ArrayList<>();
+
+            Predicate<Integer> cutCondition = (length -> hiddenData.size() >= 4 + length);
+            if (containsExtension) {
+                cutCondition =
+                        cutCondition.and(length -> hiddenData.get(hiddenData.size() - 1) == '\0');
+            }
+
+            int byteValue = 0;
+            int bitIndex = 0;
+            int hiddenDataLength = 0;
+
+            Map<Byte, Boolean> patternInverted = new HashMap<>();
+            byte[] patterns = {0x0, 0x2, 0x4, 0x6};
+
+            for (int i = 0; i < 4; i++) {
+                boolean inverted = (pixelData[i] & 0x1) == 0x1;
+                patternInverted.put(patterns[i], inverted);
+            }
+
+            for (int j = 4; j < pixelData.length; j++) {
+
+                // Skipeo el rojo
+                if (j % 3 == 2) {
+                    j++;
+                }
+
+                byte pixelDatum = pixelData[j];
+
+                byte pattern = (byte) (pixelDatum & 0x6);
+                boolean inverted = patternInverted.get(pattern);
+
+                // Si esta invertido, invierto el bit
+                byteValue = (byteValue << 1) | ((pixelDatum & 0x1) ^ (inverted ? 0x1 : 0x0));
+                bitIndex++;
+
+                if (bitIndex == 8) {
+                    hiddenData.add((byte) byteValue);
+                    bitIndex = 0;
+                    byteValue = 0;
+
+                    // extraigo el length
+                    if (hiddenData.size() == 4) {
+                        hiddenDataLength =
+                                ((hiddenData.get(0)) & 0xFF) << 24
+                                        | ((hiddenData.get(1)) & 0xFF) << 16
+                                        | ((hiddenData.get(2)) & 0xFF) << 8
+                                        | ((hiddenData.get(3)) & 0xFF);
+                        if (hiddenDataLength <= 0) {
+                            throw new RuntimeException("No hidden data found");
+                        }
+                    } else if (cutCondition.test(hiddenDataLength)) {
+                        break;
+                    }
+                }
+            }
+            byte[] result = new byte[hiddenData.size()];
+            for (int i = 0; i < hiddenData.size(); i++) {
+                result[i] = hiddenData.get(i);
+            }
+            return result;
         }
     };
-
-    public abstract BMP embed(byte[] message, BMP image);
-
-    public abstract byte[] extract(BMP image, boolean containsExtension);
-
 
     private static BMP lsbEmbed(byte[] message, BMP image, int bitsPerByte) {
         byte[] pixelData = image.getPixelData();
@@ -185,7 +241,8 @@ public enum SteganographyMethod {
 
             // Obtengo los bitsPerByte del byte
             byte currentByte = message[messageIndex];
-            int bitsToEmbed = (currentByte >> (8 - (bitsPerByte + bitIndex))) & ((1 << bitsPerByte) - 1);
+            int bitsToEmbed =
+                    (currentByte >> (8 - (bitsPerByte + bitIndex))) & ((1 << bitsPerByte) - 1);
 
             // Modifico el bit menos significativo de la imagen con el del mensaje
             byte imageByte = pixelData[i];
@@ -206,8 +263,6 @@ public enum SteganographyMethod {
         int byteValue = 0;
         int bitIndex = 0;
         int hiddenDataLength = 0;
-
-
 
         Predicate<Integer> cutCondition = (length -> hiddenData.size() >= 4 + length);
         if (containsExtension) {
@@ -245,4 +300,8 @@ public enum SteganographyMethod {
         }
         return result;
     }
+
+    public abstract BMP embed(byte[] message, BMP image);
+
+    public abstract byte[] extract(BMP image, boolean containsExtension);
 }
