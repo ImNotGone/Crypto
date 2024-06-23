@@ -192,14 +192,19 @@ public class Configuration {
         formatter.setOptionComparator(Comparator.comparingInt(optionsList::indexOf));
 
         formatter.setLeftPadding(4);
+        formatter.setWidth(120);
 
         String commandLineSyntax =
                 """
-                        
-                        stegobmp -embed -in <input file> -p <cover file> -out <output file> -steg <LSB1|LSB4|LSBI> [-pass <password>] [-a <aes128|aes192|aes256|des>] [-m <ecb|cfb|ofb|cbc>]
-                        
-                        stegobmp -extract -p <cover file> -out <output file> -steg <LSB1|LSB4|LSBI> [-pass <password>] [-a <aes128|aes192|aes256|des>] [-m <ecb|cfb|ofb|cbc>]
-                        """;
+                       \s
+                       \s
+                        stegobmp -embed -in <input file> -p <cover file> -out <output file> -steg <LSB1|LSB4|LSBI>
+                                [-pass <password>] [-a <aes128|aes192|aes256|des>] [-m <ecb|cfb|ofb|cbc>]
+                       \s
+                        stegobmp -extract -p <cover file> -out <output file> -steg <LSB1|LSB4|LSBI>
+                                [-pass <password>] [-a <aes128|aes192|aes256|des>] [-m <ecb|cfb|ofb|cbc>]
+                           \s
+                       \s""";
 
         formatter.printHelp(commandLineSyntax, options);
     }
