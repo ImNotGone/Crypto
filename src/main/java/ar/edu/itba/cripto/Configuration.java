@@ -9,6 +9,7 @@ import ar.edu.itba.cripto.steganography.Extract;
 import org.apache.commons.cli.*;
 
 import java.io.IOException;
+import java.util.Comparator;
 import java.util.List;
 
 public class Configuration {
@@ -188,9 +189,19 @@ public class Configuration {
 
         HelpFormatter formatter = new HelpFormatter();
         List<Option> optionsList = List.of(Configuration.options);
-        formatter.setOptionComparator(
-                (o1, o2) -> optionsList.indexOf(o2) - optionsList.indexOf(o2));
-        formatter.printHelp("stegobmp ", options);
+        formatter.setOptionComparator(Comparator.comparingInt(optionsList::indexOf));
+
+        formatter.setLeftPadding(4);
+
+        String commandLineSyntax =
+                """
+                        
+                        stegobmp -embed -in <input file> -p <cover file> -out <output file> -steg <LSB1|LSB4|LSBI> [-pass <password>] [-a <aes128|aes192|aes256|des>] [-m <ecb|cfb|ofb|cbc>]
+                        
+                        stegobmp -extract -p <cover file> -out <output file> -steg <LSB1|LSB4|LSBI> [-pass <password>] [-a <aes128|aes192|aes256|des>] [-m <ecb|cfb|ofb|cbc>]
+                        """;
+
+        formatter.printHelp(commandLineSyntax, options);
     }
 
     private static Cryptography getCryptography(CommandLine cmd) {
