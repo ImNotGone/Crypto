@@ -40,8 +40,41 @@ public enum SteganographyMethod {
                 throw new RuntimeException("BMP file is not long enough");
             }
 
-            BMP stegoImage = SteganographyMethod.LSB1.embed(message, image);
-            byte[] stegoImagePixelData = stegoImage.getPixelData();
+            byte[] stegoImagePixelData = image.getPixelData();
+
+            // mask: pone en 0 los bits menos significativos
+            int messageIndex = 0;
+            int bitIndex = 0;
+
+            for (int i = 4; i < stegoImagePixelData.length; i++) {
+
+                // Skip red byte
+                if (i % 3 == 2) {
+                    continue;
+                }
+
+                // Si ya itere toodo el byte del mensaje paso al sig.
+                if (bitIndex == 8) {
+                    bitIndex = 0;
+                    messageIndex++;
+                }
+
+                // Termine el mensaje, salgo
+                if (messageIndex == message.length) {
+                    break;
+                }
+
+                // Obtengo los bitsPerByte del byte
+                byte currentByte = message[messageIndex];
+                int bitsToEmbed = (currentByte >> (7 - bitIndex)) & 1;
+
+                // Modifico el bit menos significativo de la imagen con el del mensaje
+                byte imageByte = stegoImagePixelData[i];
+                byte modifiedImageByte = (byte) ((imageByte & 0xFE) | bitsToEmbed);
+                stegoImagePixelData[i] = modifiedImageByte;
+
+                bitIndex++;
+            }
 
             /*
             0000 0000
@@ -51,7 +84,14 @@ public enum SteganographyMethod {
              */
             byte[] possiblePatterns = {0x0, 0x2, 0x4, 0x6};
             Map<Byte, Integer> patternCount = new HashMap<>();
-            for (byte originalPixelDatum : originalPixelData) {
+            for (int i = 4; i < originalPixelData.length; i++) {
+
+                // Skip red byte
+                if (i % 3 == 2) {
+                    continue;
+                }
+
+                byte originalPixelDatum = originalPixelData[i];
                 for (byte possiblePattern : possiblePatterns) {
                     if ((originalPixelDatum & 0x6) == possiblePattern) {
                         patternCount.put(
@@ -73,7 +113,13 @@ public enum SteganographyMethod {
             Set<Byte> patternsToVerify = patternCount.keySet();
             Map<Byte, Integer> changedCount = new HashMap<>();
             Map<Byte, Integer> unchangedCount = new HashMap<>();
-            for (int i = 0; i < stegoImagePixelData.length; i++) {
+            for (int i = 4; i < stegoImagePixelData.length; i++) {
+
+                // Skip red byte
+                if (i % 3 == 2) {
+                    continue;
+                }
+
                 byte stegoPixelDatum = stegoImagePixelData[i];
                 byte originalPixelDatum = originalPixelData[i];
 
@@ -95,15 +141,24 @@ public enum SteganographyMethod {
 
             Set<Byte> patternsToChange = new HashSet<>();
             for (byte pattern : patternsToVerify) {
-                if (changedCount.get(pattern) <= unchangedCount.get(pattern)) {
+                if (changedCount.getOrDefault(pattern, 0)
+                        > unchangedCount.getOrDefault(pattern, 0)) {
                     patternsToChange.add(pattern);
                 }
             }
 
             // Change the least significant bit of the pixels with the patterns to change
-            int messageIndex = 0;
-            int bitIndex = 0;
-            for (byte stegoImagePixelDatum : stegoImagePixelData) {
+            messageIndex = 0;
+            bitIndex = 0;
+            for (int i = 4; i < stegoImagePixelData.length; i++) {
+
+                // Skip red byte
+                if (i % 3 == 2) {
+                    continue;
+                }
+
+                byte stegoImagePixelDatum = stegoImagePixelData[i];
+
                 // Si ya itere toodo el byte del mensaje paso al sig.
                 if (bitIndex == 8) {
                     bitIndex = 0;
@@ -125,21 +180,18 @@ public enum SteganographyMethod {
             }
 
             // Embed the inversion pattern
-            byte[] inversionPattern = new byte[possiblePatterns.length];
             for (int i = 0; i < possiblePatterns.length; i++) {
                 byte pattern = possiblePatterns[i];
                 if (patternsToChange.contains(pattern)) {
-                    inversionPattern[i] = 1;
+                    stegoImagePixelData[i] = (byte) (stegoImagePixelData[i] | 0x1);
                 } else {
-                    inversionPattern[i] = 0;
+                    stegoImagePixelData[i] = (byte) (stegoImagePixelData[i] & 0xFE);
                 }
             }
 
-            byte[] newMessage = new byte[message.length + 4];
-            System.arraycopy(inversionPattern, 0, newMessage, 0, 4);
-            System.arraycopy(message, 0, newMessage, 4, message.length);
+            image.setPixelData(stegoImagePixelData);
 
-            return SteganographyMethod.LSB1.embed(newMessage, image);
+            return image;
         }
 
         @Override
@@ -169,7 +221,7 @@ public enum SteganographyMethod {
 
                 // Skipeo el rojo
                 if (j % 3 == 2) {
-                    j++;
+                    continue;
                 }
 
                 byte pixelDatum = pixelData[j];

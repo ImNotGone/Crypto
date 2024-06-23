@@ -6,6 +6,7 @@ import ar.edu.itba.cripto.cryptography.CryptographyMode;
 import ar.edu.itba.cripto.steganography.Embed;
 import ar.edu.itba.cripto.steganography.Extract;
 
+import ar.edu.itba.cripto.steganography.SteganographyMethod;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -22,14 +23,12 @@ public class AppTest {
 
     private static final String COVER_FILE_PATH = "src/test/resources/cover.bmp";
     private static final String MESSAGE_FILE_PATH = "src/test/resources/message.java";
-    private static final String PASSWORD = "stegobmp";
-
-    private static final String[] SUPPORTED_STEGANOGRAPHY_METHODS = {"LSB1", "LSB4"};
 
     @TempDir public File tempDir;
 
     private static Stream<Arguments> provideParameterCombinations() {
-        return Stream.of(SUPPORTED_STEGANOGRAPHY_METHODS)
+        return Stream.of(SteganographyMethod.values())
+                .map(SteganographyMethod::name)
                 .flatMap(
                         steganographyMethod ->
                                 Stream.of(CryptographyAlgorithm.values())
@@ -45,7 +44,7 @@ public class AppTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"LSB1", "LSB4"})
+    @ValueSource(strings = {"LSB1", "LSB4", "LSBI"})
     public void appTestNoCrypto(String steganographyMethod) throws IOException {
 
         String hiddenFilePath = tempDir.getAbsolutePath() + "/hidden.bmp";
@@ -84,6 +83,7 @@ public class AppTest {
             throws IOException {
         String hiddenFilePath = tempDir.getAbsolutePath() + "/hidden.bmp";
         String outputFilePath = tempDir.getAbsolutePath() + "/output";
+        String password = steganographyMethod + cryptographyAlgorithm + cryptographyMode;
 
         // Embed
         Embed embed = new Embed();
@@ -91,7 +91,7 @@ public class AppTest {
         embed.setCover(COVER_FILE_PATH);
         embed.setOutput(hiddenFilePath);
         embed.setSteganographyMethod(steganographyMethod);
-        embed.setCryptography(new Cryptography(cryptographyAlgorithm, cryptographyMode, PASSWORD));
+        embed.setCryptography(new Cryptography(cryptographyAlgorithm, cryptographyMode, password));
         embed.execute();
 
         // Extract
@@ -100,7 +100,7 @@ public class AppTest {
         extract.setOutput(outputFilePath);
         extract.setSteganographyMethod(steganographyMethod);
         extract.setCryptography(
-                new Cryptography(cryptographyAlgorithm, cryptographyMode, PASSWORD));
+                new Cryptography(cryptographyAlgorithm, cryptographyMode, password));
         extract.execute();
 
         // Compare
