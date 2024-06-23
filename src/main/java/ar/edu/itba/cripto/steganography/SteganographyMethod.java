@@ -34,7 +34,8 @@ public enum SteganographyMethod {
             byte[] originalPixelData = image.getPixelData();
 
             // 4 bytes needed for storing the inversion pattern
-            int bytesNeeded = message.length * 8 + 4;
+            // Red byte is skipped, so we need more space
+            int bytesNeeded = (3 * message.length * 8) / 2 + 4;
 
             if (originalPixelData.length < bytesNeeded) {
                 throw new RuntimeException("BMP file is not long enough");
@@ -112,6 +113,12 @@ public enum SteganographyMethod {
                 if (patternInversionsCount > patternAppearancesCount / 2) {
 
                     for (int k = 0; k < lastByte; k++) {
+
+                        // Skip red byte
+                        if (k % 3 == 2) {
+                            continue;
+                        }
+
                         byte imageByte = originalPixelData[k];
                         byte patternByte = (byte) (imageByte & 0x6);
 
