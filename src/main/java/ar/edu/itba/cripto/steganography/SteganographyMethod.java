@@ -40,124 +40,26 @@ public enum SteganographyMethod {
                 throw new RuntimeException("BMP file is not long enough");
             }
 
-            byte[] stegoImagePixelData = image.getPixelData();
-
-            // mask: pone en 0 los bits menos significativos
-            int messageIndex = 0;
-            int bitIndex = 0;
-
-            for (int i = 4; i < stegoImagePixelData.length; i++) {
-
-                // Skip red byte
-                if (i % 3 == 2) {
-                    continue;
-                }
-
-                // Si ya itere toodo el byte del mensaje paso al sig.
-                if (bitIndex == 8) {
-                    bitIndex = 0;
-                    messageIndex++;
-                }
-
-                // Termine el mensaje, salgo
-                if (messageIndex == message.length) {
-                    break;
-                }
-
-                // Obtengo los bitsPerByte del byte
-                byte currentByte = message[messageIndex];
-                int bitsToEmbed = (currentByte >> (7 - bitIndex)) & 1;
-
-                // Modifico el bit menos significativo de la imagen con el del mensaje
-                byte imageByte = stegoImagePixelData[i];
-                byte modifiedImageByte = (byte) ((imageByte & 0xFE) | bitsToEmbed);
-                stegoImagePixelData[i] = modifiedImageByte;
-
-                bitIndex++;
-            }
-
             /*
             0000 0000
             0000 0010
             0000 0100
             0000 0110
              */
-            byte[] possiblePatterns = {0x0, 0x2, 0x4, 0x6};
-            Map<Byte, Integer> patternCount = new HashMap<>();
-            for (int i = 4; i < originalPixelData.length; i++) {
+            byte[] patterns = {0x0, 0x2, 0x4, 0x6};
+            Map<Byte, Long> patternAppearances = new HashMap<>();
+            Map<Byte, Long> patternInversions = new HashMap<>();
+
+            int messageIndex = 0;
+            int bitIndex = 0;
+
+            int i;
+            for (i = 4; i < originalPixelData.length; i++) {
 
                 // Skip red byte
                 if (i % 3 == 2) {
                     continue;
                 }
-
-                byte originalPixelDatum = originalPixelData[i];
-                for (byte possiblePattern : possiblePatterns) {
-                    if ((originalPixelDatum & 0x6) == possiblePattern) {
-                        patternCount.put(
-                                possiblePattern, patternCount.getOrDefault(possiblePattern, 0) + 1);
-                    }
-                }
-                if (patternCount.size() == possiblePatterns.length) {
-                    break;
-                }
-            }
-
-            // Check if all patterns have at least 2 pixels
-            for (byte pattern : possiblePatterns) {
-                if (patternCount.getOrDefault(pattern, 0) < 2) {
-                    patternCount.remove(pattern);
-                }
-            }
-
-            Set<Byte> patternsToVerify = patternCount.keySet();
-            Map<Byte, Integer> changedCount = new HashMap<>();
-            Map<Byte, Integer> unchangedCount = new HashMap<>();
-            for (int i = 4; i < stegoImagePixelData.length; i++) {
-
-                // Skip red byte
-                if (i % 3 == 2) {
-                    continue;
-                }
-
-                byte stegoPixelDatum = stegoImagePixelData[i];
-                byte originalPixelDatum = originalPixelData[i];
-
-                byte currentPattern = (byte) (originalPixelDatum & 0x6);
-
-                if (patternsToVerify.contains(currentPattern)) {
-                    byte originalLeastSignificantBit = (byte) (originalPixelDatum & 0x1);
-                    byte stegoLeastSignificantBit = (byte) (stegoPixelDatum & 0x1);
-
-                    if (originalLeastSignificantBit != stegoLeastSignificantBit) {
-                        changedCount.put(
-                                currentPattern, changedCount.getOrDefault(currentPattern, 0) + 1);
-                    } else {
-                        unchangedCount.put(
-                                currentPattern, unchangedCount.getOrDefault(currentPattern, 0) + 1);
-                    }
-                }
-            }
-
-            Set<Byte> patternsToChange = new HashSet<>();
-            for (byte pattern : patternsToVerify) {
-                if (changedCount.getOrDefault(pattern, 0)
-                        > unchangedCount.getOrDefault(pattern, 0)) {
-                    patternsToChange.add(pattern);
-                }
-            }
-
-            // Change the least significant bit of the pixels with the patterns to change
-            messageIndex = 0;
-            bitIndex = 0;
-            for (int i = 4; i < stegoImagePixelData.length; i++) {
-
-                // Skip red byte
-                if (i % 3 == 2) {
-                    continue;
-                }
-
-                byte stegoImagePixelDatum = stegoImagePixelData[i];
 
                 // Si ya itere toodo el byte del mensaje paso al sig.
                 if (bitIndex == 8) {
@@ -170,27 +72,66 @@ public enum SteganographyMethod {
                     break;
                 }
 
-                byte currentPattern = (byte) (stegoImagePixelDatum & 0x6);
+                // Obtengo el bit del mensaje
+                byte currentByte = message[messageIndex];
+                int bitToEmbed = (currentByte >> (7 - bitIndex)) & 1;
 
-                if (patternsToChange.contains(currentPattern)) {
-                    // Invert current bit
-                    message[messageIndex] = (byte) (message[messageIndex] ^ (1 << (7 - bitIndex)));
+                byte imageByte = originalPixelData[i];
+
+                // Cuento apariciones de los patrones
+                byte pattern = (byte) (imageByte & 0x6);
+                patternAppearances.merge(pattern, 1L, Long::sum);
+
+                // Modifico el bit menos significativo de la imagen con el del mensaje
+                byte modifiedImageByte = (byte) ((imageByte & 0xFE) | bitToEmbed);
+                originalPixelData[i] = modifiedImageByte;
+
+                // Guardo la inversion
+                if (imageByte != modifiedImageByte) {
+                    patternInversions.merge(pattern, 1L, Long::sum);
                 }
+
                 bitIndex++;
             }
 
-            // Embed the inversion pattern
-            for (int i = 0; i < possiblePatterns.length; i++) {
-                byte pattern = possiblePatterns[i];
-                if (patternsToChange.contains(pattern)) {
-                    stegoImagePixelData[i] = (byte) (stegoImagePixelData[i] | 0x1);
+            int lastByte = i;
+
+            byte[] patternBytes = new byte[4];
+
+            // Veo si hay que invertir
+            for (int j = 0; j < patterns.length; j++) {
+                byte pattern = patterns[j];
+                long patternAppearancesCount = patternAppearances.getOrDefault(pattern, 0L);
+                long patternInversionsCount = patternInversions.getOrDefault(pattern, 0L);
+
+                if (patternAppearancesCount == 0) {
+                    continue;
+                }
+
+                // Si hay mas de la mitad de inversiones, invierto
+                if (patternInversionsCount > patternAppearancesCount / 2) {
+
+                    for (int k = 0; k < lastByte; k++) {
+                        byte imageByte = originalPixelData[k];
+                        byte patternByte = (byte) (imageByte & 0x6);
+
+                        if (patternByte == pattern) {
+                            originalPixelData[k] = (byte) (imageByte ^ 0x1);
+                        }
+                    }
+
+                    patternBytes[j] = 0x1;
                 } else {
-                    stegoImagePixelData[i] = (byte) (stegoImagePixelData[i] & 0xFE);
+                    patternBytes[j] = 0x0;
                 }
             }
 
-            image.setPixelData(stegoImagePixelData);
+            // Agrego los patrones al principio
+            for (int j = 0; j < 4; j++) {
+                originalPixelData[j] = (byte) ((originalPixelData[j] & 0xFE) | patternBytes[j]);
+            }
 
+            image.setPixelData(originalPixelData);
             return image;
         }
 
